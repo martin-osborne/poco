@@ -4,7 +4,7 @@
 # Usage:
 # ------
 # buildwin.ps1 [-poco_base    dir]
-#              [-vs_version   120 | 110 | 100 | 90]
+#              [-vs_version   140 | 120 | 110 | 100 | 90]
 #              [-action       build | rebuild | clean]
 #              [-linkmode     shared | static_mt | static_md | all]
 #              [-config       release | debug | both]
@@ -12,7 +12,7 @@
 #              [-samples]
 #              [-tests]
 #              [-omit         "Lib1X;LibY;LibZ;..."]
-#              [-tool         msbuild | devenv | vcexpress | wdexpress]
+#              [-tool         msbuild | devenv]
 #              [-openssl_base dir]
 #              [-mysql_base   dir]
 
@@ -23,7 +23,7 @@ Param
   [string] $poco_base,
 
   [Parameter()]
-  [ValidateSet(90, 100, 110, 120)]
+  [ValidateSet(90, 100, 110, 120, 140)]
   [int] $vs_version,
 
   [Parameter()]
@@ -51,7 +51,7 @@ Param
   [string] $tool = 'msbuild',
 
   [Parameter()]
-  [string] $openssl_base,
+  [string] $openssl_base = 'default_openssl',
 
   [Parameter()]
   [string] $mysql_base,
@@ -78,7 +78,8 @@ function Set-Environment
 
   if ($vs_version -eq 0)
   {
-    if     ($Env:VS120COMNTOOLS -ne '') { $script:vs_version = 120 }
+    if     ($Env:VS140COMNTOOLS -ne '') { $script:vs_version = 140 }
+    elseif ($Env:VS120COMNTOOLS -ne '') { $script:vs_version = 120 }
     elseif ($Env:VS110COMNTOOLS -ne '') { $script:vs_version = 110 }
     elseif ($Env:VS100COMNTOOLS -ne '') { $script:vs_version = 100 }
     elseif ($Env:VS90COMNTOOLS  -ne '') { $script:vs_version = 90 }
@@ -92,17 +93,17 @@ function Set-Environment
   if (-Not $Env:PATH.Contains("$Env:POCO_BASE\bin64;$Env:POCO_BASE\bin;")) 
   { $Env:PATH = "$Env:POCO_BASE\bin64;$Env:POCO_BASE\bin;$Env:PATH" }
 
-  if ($openssl_base -eq '')
+  if ($openssl_base -ne 'default_openssl')
   {
     if ($platform -eq 'x64') { $script:openssl_base = 'C:\OpenSSL-Win64' }
     else                     { $script:openssl_base = 'C:\OpenSSL-Win32' }
-  }
   
-  $Env:OPENSSL_DIR     = "$openssl_base"
-  $Env:OPENSSL_INCLUDE = "$Env:OPENSSL_DIR\include"
-  $Env:OPENSSL_LIB     = "$Env:OPENSSL_DIR\lib;$Env:OPENSSL_DIR\lib\VC"
-  Add-Env-Var "OPENSSL" "INCLUDE"
-  Add-Env-Var "OPENSSL" "LIB"
+    $Env:OPENSSL_DIR     = "$openssl_base"
+    $Env:OPENSSL_INCLUDE = "$Env:OPENSSL_DIR\include"
+    $Env:OPENSSL_LIB     = "$Env:OPENSSL_DIR\lib;$Env:OPENSSL_DIR\lib\VC"
+    Add-Env-Var "OPENSSL" "INCLUDE"
+    Add-Env-Var "OPENSSL" "LIB"
+  }
 
   if ($mysql_base -ne '')
   {
@@ -144,7 +145,7 @@ function Process-Input
     Write-Host 'Usage:'
     Write-Host '------'
     Write-Host 'buildwin.ps1 [-poco_base    dir]'
-    Write-Host '             [-vs_version   120 | 110 | 100 | 90]'
+    Write-Host '             [-vs_version   140 | 120 | 110 | 100 | 90]'
     Write-Host '             [-action       build | rebuild | clean]'
     Write-Host '             [-linkmode     shared | static_mt | static_md | all]'
     Write-Host '             [-config       release | debug | both]'
@@ -179,9 +180,13 @@ function Process-Input
       Write-Host "Omit:          $omit"
     }
 
-    if ($openssl_base -ne '')
+    if ($openssl_base -ne 'default_openssl')
     {
       Write-Host "OpenSSL:       $openssl_base"
+    }
+	else
+    {
+      Write-Host "OpenSSL:       default (built-in)"
     }
   
     if ($mysql_base -ne '')
@@ -190,15 +195,17 @@ function Process-Input
     }
 
     # NB: this won't work in PowerShell ISE
-    Write-Host "Press Ctrl-C to exit or any other key to continue ..."
-    $x = $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyUp")
+    # Write-Host "Press Ctrl-C to exit or any other key to continue ..."
+    # $x = $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyUp")
   }
 }
 
 
-function Build-MSBuild([string] $vsProject)
+function Build-MSBuild([string] $vsProject, [string] $vsTestAppProject, [string] $vsTestLibraryProject)
 {
-  Write-Host "Build-MSBuild ==> $vsProject"
+  Write-Host "Build-MSBuild ==> $vsProject, $vsTestAppProject, $vsTestLibraryProject"
+  [string]$flags = '/clp:NoSummary /nologo /v:minimal'
+  
   if ($linkmode -eq 'all')
   {
     $linkModeArr = 'shared', 'static_mt', 'static_md'
@@ -212,14 +219,30 @@ function Build-MSBuild([string] $vsProject)
         {
           $projectConfig = "$cfg"
           $projectConfig += "_$mode"
-          Invoke-Expression "msbuild $vsProject /t:$action /p:Configuration=$projectConfig /p:Platform=$platform /p:useenv=true"
+          Invoke-Expression "msbuild $vsProject $flags /t:$action /p:Configuration=$projectConfig /p:Platform=$platform /p:useenv=true"
+          if ($vsTestAppProject -ne '')
+          {
+            Invoke-Expression "msbuild $vsTestAppProject $flags /t:$action /p:Configuration=$projectConfig /p:Platform=$platform /p:useenv=true"
+          }
+          if (($vsTestLibraryProject -ne '') -and ($linkModeArr -eq 'shared'))
+          {
+            Invoke-Expression "msbuild $vsTestLibraryProject $flags /t:$action /p:Configuration=$projectConfig /p:Platform=$platform /p:useenv=true"
+          }
         }
       }
       else #config
       {
         $projectConfig = "$config"
         $projectConfig += "_$mode"
-        Invoke-Expression "msbuild $vsProject /t:$action /p:Configuration=$projectConfig /p:Platform=$platform /p:useenv=true"
+        Invoke-Expression "msbuild $vsProject $flags /t:$action /p:Configuration=$projectConfig /p:Platform=$platform /p:useenv=true"
+          if ($vsTestAppProject -ne '')
+          {
+            Invoke-Expression "msbuild $vsTestAppProject $flags /t:$action /p:Configuration=$projectConfig /p:Platform=$platform /p:useenv=true"
+          }
+          if (($vsTestLibraryProject -ne '') -and ($linkModeArr -eq 'shared'))
+          {
+            Invoke-Expression "msbuild $vsTestLibraryProject $flags /t:$action /p:Configuration=$projectConfig /p:Platform=$platform /p:useenv=true"
+          }
       }
     }
   }
@@ -232,14 +255,30 @@ function Build-MSBuild([string] $vsProject)
       {
         $projectConfig = "$cfg"
         $projectConfig += "_$linkmode"
-        Invoke-Expression "msbuild $vsProject /t:$action /p:Configuration=$projectConfig /p:Platform=$platform /p:useenv=true"
+        Invoke-Expression "msbuild $vsProject $flags /t:$action /p:Configuration=$projectConfig /p:Platform=$platform /p:useenv=true"
+        if ($vsTestAppProject -ne '')
+        {
+          Invoke-Expression "msbuild $vsTestAppProject $flags /t:$action /p:Configuration=$projectConfig /p:Platform=$platform /p:useenv=true"
+        }
+          if (($vsTestLibraryProject -ne '') -and ($linkmode -eq 'shared'))
+        {
+          Invoke-Expression "msbuild $vsTestLibraryProject $flags /t:$action /p:Configuration=$projectConfig /p:Platform=$platform /p:useenv=true"
+        }
       }
     }
     else #config
     {
       $projectConfig = "$config"
       $projectConfig += "_$linkmode"
-      Invoke-Expression "msbuild $vsProject /t:$action /p:Configuration=$projectConfig /p:Platform=$platform /p:useenv=true"
+      Invoke-Expression "msbuild $vsProject $flags /t:$action /p:Configuration=$projectConfig /p:Platform=$platform /p:useenv=true"
+      if ($vsTestAppProject -ne '')
+      {
+        Invoke-Expression "msbuild $vsTestAppProject $flags /t:$action /p:Configuration=$projectConfig /p:Platform=$platform /p:useenv=true"
+      }
+          if (($vsTestLibraryProject -ne '') -and ($linkmode -eq 'shared'))
+      {
+        Invoke-Expression "msbuild $vsTestLibraryProject $flags /t:$action /p:Configuration=$projectConfig /p:Platform=$platform /p:useenv=true"
+      }
     }
   }
 }
@@ -335,7 +374,7 @@ function Build
     if ($omitArray -NotContains $component)
     {
       $vsProject = "$poco_base\$componentDir\$componentName$($platformName)$($suffix).$($extension)"
-      
+
       if (!(Test-Path -Path $vsProject)) # when VS project name is not same as directory name
       {
         $vsProject = "$poco_base\$componentDir$($platformName)$($suffix).$($extension)"
@@ -347,7 +386,7 @@ function Build
           Return # since Foreach-Object is a function, this is actually loop "continue"
         }
       }
-      
+
       Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
       Write-Host "| Building $vsProject"
       Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
@@ -363,13 +402,20 @@ function Build
 
       if ($tests)
       {
-        $vsTestProject = "$poco_base\$componentDir\testsuite\TestSuite$($platformName)$($suffix).$($extension)"
+        $vsTestProject        = "$poco_base\$componentDir\testsuite\TestSuite$($platformName)$($suffix).$($extension)"
+        $vsTestAppProject     = ''
+        $vsTestLibraryProject = ''
+        if ($componentDir -eq "Foundation")
+        {
+          $vsTestAppProject     = "$poco_base\$componentDir\testsuite\TestApp$($platformName)$($suffix).$($extension)"
+          $vsTestLibraryProject = "$poco_base\$componentDir\testsuite\TestLibrary$($platformName)$($suffix).$($extension)"
+        }
         Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
         Write-Host "| Building $vsTestProject"
         Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
 
         if ($tool -eq 'devenv') { Build-Devenv $vsTestProject }
-        elseif ($tool -eq 'msbuild') { Build-MSBuild $vsTestProject }
+        elseif ($tool -eq 'msbuild') { Build-MSBuild $vsTestProject $vsTestAppProject $vsTestLibraryProject}
         else{ Write-Host "Tool not supported: $tool" }
       }
 

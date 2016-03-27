@@ -31,8 +31,8 @@ namespace Poco {
 namespace Net {
 
 
-HTTPServerConnection::HTTPServerConnection(const StreamSocket& socket, HTTPServerParams::Ptr pParams, HTTPRequestHandlerFactory::Ptr pFactory):
-	TCPServerConnection(socket),
+HTTPServerConnection::HTTPServerConnection(const StreamSocket& rSocket, HTTPServerParams::Ptr pParams, HTTPRequestHandlerFactory::Ptr pFactory):
+	TCPServerConnection(rSocket),
 	_pParams(pParams),
 	_pFactory(pFactory),
 	_stopped(false)
@@ -81,7 +81,7 @@ void HTTPServerConnection::run()
 					std::auto_ptr<HTTPRequestHandler> pHandler(_pFactory->createRequestHandler(request));
 					if (pHandler.get())
 					{
-						if (request.expectContinue())
+						if (request.getExpectContinue() && response.getStatus() == HTTPResponse::HTTP_OK)
 							response.sendContinue();
 					
 						pHandler->handleRequest(request, response);

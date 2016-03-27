@@ -23,8 +23,14 @@
 namespace Poco {
 namespace Net {
 
-#pragma pack(push,1)
-typedef struct _NTPPacketData {
+
+#if !defined(POCO_COMPILER_SUN)
+#pragma pack(push, 1)
+#else
+#pragma pack(1)
+#endif
+struct NTPPacketData 
+{
 	Poco::Int8 mode:3;
 	Poco::Int8 vn:3;
 	Poco::Int8 li:2;
@@ -38,8 +44,12 @@ typedef struct _NTPPacketData {
 	Poco::Int64 ots;
 	Poco::Int64 vts;
 	Poco::Int64 tts;
-} NTPPacketData;
+};
+#if !defined(POCO_COMPILER_SUN)
 #pragma pack(pop)
+#else
+#pragma pack()
+#endif
 
 
 NTPPacket::NTPPacket() :
@@ -63,9 +73,9 @@ NTPPacket::NTPPacket() :
 }
 
 
-NTPPacket::NTPPacket(Poco::UInt8 *packet)
+NTPPacket::NTPPacket(Poco::UInt8 *pPacket)
 {
-	setPacket(packet);
+	setPacket(pPacket);
 }
 
 
@@ -74,9 +84,9 @@ NTPPacket::~NTPPacket()
 }
 
 
-void NTPPacket::packet(Poco::UInt8 *packet) const
+void NTPPacket::packet(Poco::UInt8 *pPacket) const
 {
-	NTPPacketData *p = (NTPPacketData*)packet;
+	NTPPacketData *p = (NTPPacketData*)pPacket;
 
 	p->li = _leapIndicator;
 	p->vn = _version;
@@ -94,9 +104,9 @@ void NTPPacket::packet(Poco::UInt8 *packet) const
 }
 
 
-void NTPPacket::setPacket(Poco::UInt8 *packet)
+void NTPPacket::setPacket(Poco::UInt8 *pPacket)
 {
-	NTPPacketData *p = (NTPPacketData*)packet;
+	NTPPacketData *p = (NTPPacketData*)pPacket;
 
 	_leapIndicator = p->li;
 	_version = p->vn;

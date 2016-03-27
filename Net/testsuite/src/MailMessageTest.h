@@ -17,7 +17,7 @@
 
 
 #include "Poco/Net/Net.h"
-#include "CppUnit/TestCase.h"
+#include "Poco/CppUnit/TestCase.h"
 
 
 class MailMessageTest: public CppUnit::TestCase
@@ -37,6 +37,7 @@ public:
 	void testReadQP();
 	void testRead8Bit();
 	void testReadMultiPart();
+	void testReadMultiPartWithAttachmentNames();
 	void testReadMultiPartDefaultTransferEncoding();
 	void testEncodeWord();
 

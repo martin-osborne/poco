@@ -11,19 +11,16 @@
 
 
 #include "SimpleHashTableTest.h"
-#include "CppUnit/TestCaller.h"
-#include "CppUnit/TestSuite.h"
+#include "Poco/CppUnit/TestCaller.h"
+#include "Poco/CppUnit/TestSuite.h"
 #include "Poco/SimpleHashTable.h"
 #include "Poco/NumberFormatter.h"
-
-
-GCC_DIAG_OFF(unused-variable)
 
 
 using namespace Poco;
 
 
-SimpleHashTableTest::SimpleHashTableTest(const std::string& name): CppUnit::TestCase(name)
+SimpleHashTableTest::SimpleHashTableTest(const std::string& rName): CppUnit::TestCase(rName)
 {
 }
 

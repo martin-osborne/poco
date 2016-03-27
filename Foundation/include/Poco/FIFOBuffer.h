@@ -77,33 +77,33 @@ public:
 		///	  Readable event observers are notified, with true value
 		///	  as the argument
 
-	BasicFIFOBuffer(std::size_t size, bool notify = false):
-		_buffer(size),
+	BasicFIFOBuffer(std::size_t bufferSize, bool bufferNotify = false):
+		_buffer(bufferSize),
 		_begin(0),
 		_used(0),
-		_notify(notify),
+		_notify(bufferNotify),
 		_eof(false),
 		_error(false)
 		/// Creates the FIFOBuffer.
 	{
 	}
 
-	BasicFIFOBuffer(T* pBuffer, std::size_t size, bool notify = false):
-		_buffer(pBuffer, size),
+	BasicFIFOBuffer(T* pBuffer, std::size_t bufferSize, bool bufferNotify = false):
+		_buffer(pBuffer, bufferSize),
 		_begin(0),
 		_used(0),
-		_notify(notify),
+		_notify(bufferNotify),
 		_eof(false),
 		_error(false)
 		/// Creates the FIFOBuffer.
 	{
 	}
 
-	BasicFIFOBuffer(const T* pBuffer, std::size_t size, bool notify = false):
-		_buffer(pBuffer, size),
+	BasicFIFOBuffer(const T* pBuffer, std::size_t bufferSize, bool bufferNotify = false):
+		_buffer(pBuffer, bufferSize),
 		_begin(0),
-		_used(size),
-		_notify(notify),
+		_used(bufferSize),
+		_notify(bufferNotify),
 		_eof(false),
 		_error(false)
 		/// Creates the FIFOBuffer.
@@ -154,7 +154,7 @@ public:
 		return length;
 	}
 	
-	std::size_t peek(Poco::Buffer<T>& buffer, std::size_t length = 0) const
+	std::size_t peek(Poco::Buffer<T>& rBuffer, std::size_t length = 0) const
 		/// Peeks into the data currently in the FIFO
 		/// without actually extracting it.
 		/// Resizes the supplied buffer to the size of
@@ -169,17 +169,17 @@ public:
 		Mutex::ScopedLock lock(_mutex);
 		if (!isReadable()) return 0;
 		if (0 == length || length > _used) length = _used;
-		buffer.resize(length);
-		return peek(buffer.begin(), length);
+		rBuffer.resize(length);
+		return peek(rBuffer.begin(), length);
 	}
 	
 	std::size_t read(T* pBuffer, std::size_t length)
 		/// Copies the data currently in the FIFO
-		/// into the supplied buffer.
-		/// Resizes the supplied buffer to the size of
-		/// data written to it.
+		/// into the supplied buffer, which must be
+		/// preallocated to at least the length size
+		/// before calling this function.
 		/// 
-		/// Returns the reference to the buffer.
+		/// Returns the size of the copied data.
 	{
 		if (0 == length) return 0;
 		Mutex::ScopedLock lock(_mutex);
@@ -196,18 +196,18 @@ public:
 		return readLen;
 	}
 	
-	std::size_t read(Poco::Buffer<T>& buffer, std::size_t length = 0)
+	std::size_t read(Poco::Buffer<T>& rBuffer, std::size_t length = 0)
 		/// Copies the data currently in the FIFO
 		/// into the supplied buffer.
 		/// Resizes the supplied buffer to the size of
 		/// data written to it.
 		/// 
-		/// Returns the reference to the buffer.
+		/// Returns the size of the copied data.
 	{
 		Mutex::ScopedLock lock(_mutex);
 		if (!isReadable()) return 0;
 		std::size_t usedBefore = _used;
-		std::size_t readLen = peek(buffer, length);
+		std::size_t readLen = peek(rBuffer, length);
 		poco_assert (_used >= readLen);
 		_used -= readLen;
 		if (0 == _used) _begin = 0;
@@ -237,14 +237,14 @@ public:
 		
 		if (_buffer.size() - (_begin + _used) < length)
 		{
-			std::memmove(_buffer.begin(), _buffer.begin() + _begin, _used * sizeof(T));
+			std::memmove(_buffer.begin(), begin(), _used * sizeof(T));
 			_begin = 0;
 		}
 
 		std::size_t usedBefore = _used;
-		std::size_t available =  _buffer.size() - _used - _begin;
-		std::size_t len = length > available ? available : length;
-		std::memcpy(_buffer.begin() + _begin + _used, pBuffer, len * sizeof(T));
+		std::size_t availableBefore =  _buffer.size() - _used - _begin;
+		std::size_t len = length > availableBefore ? availableBefore : length;
+		std::memcpy(begin() + _used, pBuffer, len * sizeof(T));
 		_used += len;
 		poco_assert (_used <= _buffer.size());
 		if (_notify) notify(usedBefore);
@@ -252,7 +252,7 @@ public:
 		return len;
 	}
 
-	std::size_t write(const Buffer<T>& buffer, std::size_t length = 0)
+	std::size_t write(const Buffer<T>& rBuffer, std::size_t length = 0)
 		/// Writes data from supplied buffer to the FIFO buffer.
 		/// If there is no sufficient space for the whole
 		/// buffer to be written, data up to available 
@@ -263,10 +263,10 @@ public:
 		/// 
 		/// Returns the length of data written.
 	{
-		if (length == 0 || length > buffer.size())
-			length = buffer.size();
+		if (length == 0 || length > rBuffer.size())
+			length = rBuffer.size();
 
-		return write(buffer.begin(), length);
+		return write(rBuffer.begin(), length);
 	}
 
 	std::size_t size() const
@@ -346,7 +346,7 @@ public:
 
 		if (_buffer.size() - (_begin + _used) < length)
 		{
-			std::memmove(_buffer.begin(), _buffer.begin() + _begin, _used * sizeof(T));
+			std::memmove(_buffer.begin(), begin(), _used * sizeof(T));
 			_begin = 0;
 		}
 
@@ -499,10 +499,10 @@ public:
 		return !isFull() && isValid() && !_eof;
 	}
 
-	void setNotify(bool notify = true)
+	void setNotify(bool bufferNotify = true)
 		/// Enables/disables notifications.
 	{
-		_notify = notify;
+		_notify = bufferNotify;
 	}
 
 	bool getNotify() const

@@ -19,9 +19,8 @@
 #include "Poco/Dynamic/Var.h"
 #include "Poco/Dynamic/VarIterator.h"
 #include "Poco/Exception.h"
-#include "CppUnit/TestCase.h"
+#include "Poco/CppUnit/TestCase.h"
 
-GCC_DIAG_OFF(unused-but-set-variable)
 
 class VarTest: public CppUnit::TestCase
 {

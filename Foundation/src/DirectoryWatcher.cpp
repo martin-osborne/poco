@@ -15,6 +15,9 @@
 
 
 #include "Poco/DirectoryWatcher.h"
+#ifdef POCO_OS_FAMILY_WINDOWS
+#include "Poco/UnWindows.h"
+#endif
 
 
 #ifndef POCO_NO_INOTIFY
@@ -53,8 +56,8 @@ namespace Poco {
 class DirectoryWatcherStrategy
 {
 public:
-	DirectoryWatcherStrategy(DirectoryWatcher& owner):
-		_owner(owner)
+	DirectoryWatcherStrategy(DirectoryWatcher& ownerWatcher):
+		_owner(ownerWatcher)
 	{
 	}
 
@@ -263,8 +266,8 @@ private:
 class LinuxDirectoryWatcherStrategy: public DirectoryWatcherStrategy
 {
 public:
-	LinuxDirectoryWatcherStrategy(DirectoryWatcher& owner):
-		DirectoryWatcherStrategy(owner),
+	LinuxDirectoryWatcherStrategy(DirectoryWatcher& ownerWatcher):
+		DirectoryWatcherStrategy(ownerWatcher),
 		_fd(-1),
 		_stopped(false)
 	{
@@ -468,14 +471,14 @@ private:
 };
 
 
-#else
+#endif
 
 
 class PollingDirectoryWatcherStrategy: public DirectoryWatcherStrategy
 {
 public:
-	PollingDirectoryWatcherStrategy(DirectoryWatcher& owner):
-		DirectoryWatcherStrategy(owner)
+	PollingDirectoryWatcherStrategy(DirectoryWatcher& ownerWatcher):
+		DirectoryWatcherStrategy(ownerWatcher)
 	{
 	}
 	
@@ -518,22 +521,24 @@ private:
 };
 
 
-#endif
 
-
-DirectoryWatcher::DirectoryWatcher(const std::string& path, int eventMask, int scanInterval):
+DirectoryWatcher::DirectoryWatcher(const std::string& path, int otherEventMask, int otherScanInterval,
+	bool forceScan) :
 	_directory(path),
-	_eventMask(eventMask),
-	_scanInterval(scanInterval)
+	_eventMask(otherEventMask),
+	_scanInterval(otherScanInterval),
+	_forceScan(forceScan)
 {
 	init();
 }
 
 	
-DirectoryWatcher::DirectoryWatcher(const Poco::File& directory, int eventMask, int scanInterval):
-	_directory(directory),
-	_eventMask(eventMask),
-	_scanInterval(scanInterval)
+DirectoryWatcher::DirectoryWatcher(const Poco::File& otherDirectory, int otherEventMask, int otherScanInterval,
+	bool forceScan) :
+	_directory(otherDirectory),
+	_eventMask(otherEventMask),
+	_scanInterval(otherScanInterval),
+	_forceScan(forceScan)
 {
 	init();
 }
@@ -575,15 +580,23 @@ void DirectoryWatcher::init()
 	if (!_directory.isDirectory())
 		throw Poco::InvalidArgumentException("not a directory", _directory.path());
 
+	if (!_forceScan)
+	{
 #if POCO_OS == POCO_OS_WINDOWS_NT
-	_pStrategy = new WindowsDirectoryWatcherStrategy(*this);
+		_pStrategy = new WindowsDirectoryWatcherStrategy(*this);
 #elif POCO_OS == POCO_OS_LINUX
-	_pStrategy = new LinuxDirectoryWatcherStrategy(*this);
+		_pStrategy = new LinuxDirectoryWatcherStrategy(*this);
 #elif POCO_OS == POCO_OS_MAC_OS_X || POCO_OS == POCO_OS_FREE_BSD
-	_pStrategy = new BSDDirectoryWatcherStrategy(*this);
+		_pStrategy = new BSDDirectoryWatcherStrategy(*this);
 #else
-	_pStrategy = new PollingDirectoryWatcherStrategy(*this);
+		_pStrategy = new PollingDirectoryWatcherStrategy(*this);
 #endif
+	}
+	else
+	{
+		_pStrategy = new PollingDirectoryWatcherStrategy(*this);
+	}
+
 	_thread.start(*this);
 }
 

@@ -17,7 +17,7 @@
 
 
 #include "Poco/Net/Net.h"
-#include "CppUnit/TestCase.h"
+#include "Poco/CppUnit/TestCase.h"
 
 
 class WebSocketTest: public CppUnit::TestCase
@@ -28,6 +28,7 @@ public:
 
 	void testWebSocket();
 	void testWebSocketLarge();
+	void testWebSocketLargeInOneFrame();
 
 	void setUp();
 	void tearDown();
@@ -35,6 +36,7 @@ public:
 	static CppUnit::Test* suite();
 
 private:
+	void testOneLargeFrame(int msgSize);
 };
 
 

@@ -11,12 +11,11 @@
 
 
 #include "NamedTuplesTest.h"
-#include "CppUnit/TestCaller.h"
-#include "CppUnit/TestSuite.h"
+#include "Poco/CppUnit/TestCaller.h"
+#include "Poco/CppUnit/TestSuite.h"
 #include "Poco/NamedTuple.h"
 #include "Poco/Exception.h"
 
-GCC_DIAG_OFF(unused-but-set-variable)
 
 using Poco::NamedTuple;
 using Poco::Int8;
@@ -35,7 +34,7 @@ using Poco::NotFoundException;
 using Poco::InvalidArgumentException;
 
 
-NamedTuplesTest::NamedTuplesTest(const std::string& name): CppUnit::TestCase(name)
+NamedTuplesTest::NamedTuplesTest(const std::string& rName): CppUnit::TestCase(rName)
 {
 }
 

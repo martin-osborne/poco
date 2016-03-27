@@ -17,7 +17,7 @@
 
 
 #include "Poco/Foundation.h"
-#include "CppUnit/TestCase.h"
+#include "Poco/CppUnit/TestCase.h"
 
 
 class FileChannelTest: public CppUnit::TestCase
@@ -45,6 +45,7 @@ public:
 	void testCompress();
 	void testPurgeAge();
 	void testPurgeCount();
+	void testWrongPurgeOption();
 
 	void setUp();
 	void tearDown();

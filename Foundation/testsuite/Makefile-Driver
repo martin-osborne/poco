@@ -40,14 +40,20 @@ objects = ActiveMethodTest ActivityTest ActiveDispatcherTest \
 	UniqueExpireCacheTest UniqueExpireLRUCacheTest UnicodeConverterTest \
 	TuplesTest NamedTuplesTest TypeListTest VarTest DynamicTestSuite FileStreamTest \
 	MemoryStreamTest ObjectPoolTest DirectoryWatcherTest \
-	DirectoryIteratorsTest BufferTestSuite BasicFIFOBufferTest
+	DirectoryIteratorsTest FIFOBufferTestSuite FIFOBufferTest
 
 target         = testrunner
 target_version = 1
-target_libs    = PocoFoundation CppUnit
+target_libs    = PocoFoundation PocoCppUnit
 
 include $(POCO_BASE)/build/rules/exec
 
 ifdef POCO_UNBUNDLED
         SYSLIBS += -lz -lpcre
+endif
+
+COMMONFLAGS += -Wno-unused-variable -Wno-unused-but-set-variable
+
+ifeq ($(LINKMODE),SHARED)
+SHAREDOPT_LINK += -Wl,-rpath,$(BINPATH)
 endif

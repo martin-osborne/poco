@@ -35,7 +35,7 @@ class MailMessage;
 
 class Net_API SMTPClientSession
 	/// This class implements an Simple Mail
-	/// Transfer Procotol (SMTP, RFC 2821)
+	/// Transfer Protocol (SMTP, RFC 2821)
 	/// client for sending e-mail messages.
 {
 public:
@@ -52,7 +52,8 @@ public:
 		AUTH_CRAM_MD5,
 		AUTH_CRAM_SHA1,
 		AUTH_LOGIN,
-		AUTH_PLAIN
+		AUTH_PLAIN,
+		AUTH_XOAUTH2 
 	};
 
 	explicit SMTPClientSession(const StreamSocket& socket);
@@ -184,6 +185,7 @@ protected:
 	void loginUsingCRAM(const std::string& username, const std::string& method, Poco::DigestEngine& hmac);
 	void loginUsingLogin(const std::string& username, const std::string& password);
 	void loginUsingPlain(const std::string& username, const std::string& password);
+	void loginUsingXOAUTH2(const std::string& username, const std::string& password);
 	DialogSocket& socket();
 
 private:

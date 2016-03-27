@@ -22,6 +22,7 @@
 #include "Poco/Net/HTTPFixedLengthStream.h"
 #include "Poco/Net/HTTPChunkedStream.h"
 #include "Poco/Net/HTTPServerParams.h"
+#include "Poco/Net/StreamSocket.h"
 #include "Poco/String.h"
 
 
@@ -32,16 +33,13 @@ namespace Poco {
 namespace Net {
 
 
-const std::string HTTPServerRequestImpl::EXPECT("Expect");
-
-
-HTTPServerRequestImpl::HTTPServerRequestImpl(HTTPServerResponseImpl& response, HTTPServerSession& session, HTTPServerParams* pParams):
-	_response(response),
+HTTPServerRequestImpl::HTTPServerRequestImpl(HTTPServerResponseImpl& rResponse, HTTPServerSession& session, HTTPServerParams* pParams):
+	_response(rResponse),
 	_session(session),
 	_pStream(0),
 	_pParams(pParams, true)
 {
-	response.attachRequest(this);
+	rResponse.attachRequest(this);
 
 	HTTPHeaderInputStream hs(session);
 	read(hs);
@@ -58,7 +56,7 @@ HTTPServerRequestImpl::HTTPServerRequestImpl(HTTPServerResponseImpl& response, H
 #else
 		_pStream = new HTTPFixedLengthInputStream(session, getContentLength());
 #endif
-	else if (getMethod() == HTTPRequest::HTTP_GET || getMethod() == HTTPRequest::HTTP_HEAD)
+	else if (getMethod() == HTTPRequest::HTTP_GET || getMethod() == HTTPRequest::HTTP_HEAD || getMethod() == HTTPRequest::HTTP_DELETE)
 		_pStream = new HTTPFixedLengthInputStream(session, 0);
 	else
 		_pStream = new HTTPInputStream(session);
@@ -71,6 +69,12 @@ HTTPServerRequestImpl::~HTTPServerRequestImpl()
 }
 
 
+bool HTTPServerRequestImpl::secure() const
+{
+	return _session.socket().secure();
+}
+
+
 StreamSocket& HTTPServerRequestImpl::socket()
 {
 	return _session.socket();
@@ -80,13 +84,6 @@ StreamSocket& HTTPServerRequestImpl::socket()
 StreamSocket HTTPServerRequestImpl::detachSocket()
 {
 	return _session.detachSocket();
-}
-
-
-bool HTTPServerRequestImpl::expectContinue() const
-{
-	const std::string& expect = get(EXPECT, EMPTY);
-	return !expect.empty() && icompare(expect, "100-continue") == 0;
 }
 
 

@@ -17,7 +17,7 @@
 
 
 #include "Poco/Foundation.h"
-#include "CppUnit/TestCase.h"
+#include "Poco/CppUnit/TestCase.h"
 #include "Poco/NotificationQueue.h"
 #include "Poco/Mutex.h"
 #include <set>
@@ -34,6 +34,7 @@ public:
 	void testWaitDequeue();
 	void testThreads();
 	void testDefaultQueue();
+	void testQueueRemove();
 
 	void setUp();
 	void tearDown();

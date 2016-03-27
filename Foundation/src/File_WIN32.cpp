@@ -297,7 +297,7 @@ void FileImpl::renameToImpl(const std::string& path)
 {
 	poco_assert (!_path.empty());
 
-	if (MoveFileA(_path.c_str(), path.c_str()) == 0)
+	if (MoveFileExA(_path.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING) == 0)
 		handleLastErrorImpl(_path);
 }
 
@@ -346,6 +346,39 @@ bool FileImpl::createDirectoryImpl()
 	if (CreateDirectoryA(_path.c_str(), 0) == 0)
 		handleLastErrorImpl(_path);
 	return true;
+}
+
+
+FileImpl::FileSizeImpl FileImpl::totalSpaceImpl() const
+{
+	poco_assert(!_path.empty());
+
+	ULARGE_INTEGER space;
+	if (!GetDiskFreeSpaceEx(_path.c_str(), NULL, &space, NULL))
+		handleLastErrorImpl(_path);
+	return space.QuadPart;
+}
+
+
+FileImpl::FileSizeImpl FileImpl::usableSpaceImpl() const
+{
+	poco_assert(!_path.empty());
+
+	ULARGE_INTEGER space;
+	if (!GetDiskFreeSpaceEx(_path.c_str(), &space, NULL, NULL))
+		handleLastErrorImpl(_path);
+	return space.QuadPart;
+}
+
+
+FileImpl::FileSizeImpl FileImpl::freeSpaceImpl() const
+{
+	poco_assert(!_path.empty());
+
+	ULARGE_INTEGER space;
+	if (!GetDiskFreeSpaceEx(_path.c_str(), NULL, NULL, &space))
+		handleLastErrorImpl(_path);
+	return space.QuadPart;
 }
 
 

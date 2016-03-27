@@ -25,13 +25,27 @@ target_include_directories( "${LIBNAME}"
         $<INSTALL_INTERFACE:include>
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
     )
+target_compile_definitions("${LIBNAME}" PUBLIC ${LIB_MODE_DEFINITIONS})
 
 POCO_INSTALL("${LIBNAME}")
 POCO_GENERATE_PACKAGE("${LIBNAME}")
 
 if (ENABLE_TESTS)
-    #TODO: Looks like the samples use crypto somehow?
-    #add_subdirectory(samples)
-    #add_subdirectory(testsuite)
+if (WIN32)
+#   FIXME: 
+#	add_subdirectory(testsuite)
+    message(STATUS "############ FIXME: ${LIBNAME} add_subdirectory(testsuite)")
+else ()
+    add_subdirectory(testsuite)
+endif ()
+endif ()
+if (ENABLE_SAMPLES)
+if (WIN32)
+#   FIXME: Looks like the samples use crypto somehow?
+#   add_subdirectory(samples)
+    message(STATUS "############ FIXME: ${LIBNAME} add_subdirectory(samples)")
+else ()
+    add_subdirectory(testsuite)
+endif ()
 endif ()
 

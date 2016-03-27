@@ -153,8 +153,14 @@ public:
 		/// Returns the element with the given name.
 		/// An empty element will be returned when the element is not found.
 
+	Int64 getInteger(const std::string& name) const;
+		/// Returns an integer. Useful when MongoDB returns int32, int64
+		/// or double for a number (count for example). This method will always
+		/// return an Int64. When the element is not found, a
+		/// NotFoundException will be thrown.
+
 	template<typename T>
-	bool isType(const std::string& name)
+	bool isType(const std::string& name) const
 		/// Returns true when the type of the element equals the TypeId of ElementTrait
 	{
 		Element::Ptr element = get(name);
@@ -185,7 +191,7 @@ protected:
 
 inline Document& Document::addElement(Element::Ptr element)
 {
-	_elements.insert(element);
+	_elements.push_back(element);
 	return *this;
 }
 

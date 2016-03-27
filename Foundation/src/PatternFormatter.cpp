@@ -24,6 +24,7 @@
 #include "Poco/Timezone.h"
 #include "Poco/Environment.h"
 #include "Poco/NumberParser.h"
+#include "Poco/StringTokenizer.h"
 
 
 namespace Poco {
@@ -31,18 +32,21 @@ namespace Poco {
 
 const std::string PatternFormatter::PROP_PATTERN = "pattern";
 const std::string PatternFormatter::PROP_TIMES   = "times";
+const std::string PatternFormatter::PROP_PRIORITY_NAMES = "priorityNames";
 
 
 PatternFormatter::PatternFormatter():
 	_localTime(false)
 {
+	parsePriorityNames();
 }
 
 
-PatternFormatter::PatternFormatter(const std::string& format):
+PatternFormatter::PatternFormatter(const std::string& rFormat):
 	_localTime(false),
-	_pattern(format)
+	_pattern(rFormat)
 {
+	parsePriorityNames();
 	parsePattern();
 }
 
@@ -75,6 +79,7 @@ void PatternFormatter::format(const Message& msg, std::string& text)
 		case 'P': NumberFormatter::append(text, msg.getPid()); break;
 		case 'T': text.append(msg.getThread()); break;
 		case 'I': NumberFormatter::append(text, msg.getTid()); break;
+		case 'O': NumberFormatter::append(text, msg.getOsTid()); break;
 		case 'N': text.append(Environment::nodeName()); break;
 		case 'U': text.append(msg.getSourceFile() ? msg.getSourceFile() : ""); break;
 		case 'u': NumberFormatter::append(text, msg.getSourceLine()); break;
@@ -203,6 +208,11 @@ void PatternFormatter::setProperty(const std::string& name, const std::string& v
 	{
 		_localTime = (value == "local");
 	}
+	else if (name == PROP_PRIORITY_NAMES) 
+	{
+		_priorityNames = value;
+		parsePriorityNames();
+	}
 	else 
 	{
 		Formatter::setProperty(name, value);
@@ -216,6 +226,8 @@ std::string PatternFormatter::getProperty(const std::string& name) const
 		return _pattern;
 	else if (name == PROP_TIMES)
 		return _localTime ? "local" : "UTC";
+	else if (name == PROP_PRIORITY_NAMES)
+		return _priorityNames;
 	else
 		return Formatter::getProperty(name);
 }
@@ -238,10 +250,31 @@ namespace
 }
 
 
+void PatternFormatter::parsePriorityNames()
+{
+	for (int i = 0; i <= 8; i++)
+	{
+		_priorities[i] = priorities[i];
+	}
+	if (!_priorityNames.empty())
+	{
+		StringTokenizer st(_priorityNames, ",;", StringTokenizer::TOK_TRIM);
+		if (st.count() == 8)
+		{
+			for (int i = 1; i <= 8; i++)
+			{
+				_priorities[i] = st[i - 1];
+			}
+		}
+		else throw Poco::SyntaxException("priorityNames property must specify a comma-separated list of 8 property names");
+	}
+}
+
+
 const std::string& PatternFormatter::getPriorityName(int prio)
 {
 	poco_assert (1 <= prio && prio <= 8);	
-	return priorities[prio];
+	return _priorities[prio];
 }
 
 

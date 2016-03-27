@@ -11,15 +11,12 @@
 
 
 #include "DateTimeTest.h"
-#include "CppUnit/TestCaller.h"
-#include "CppUnit/TestSuite.h"
+#include "Poco/CppUnit/TestCaller.h"
+#include "Poco/CppUnit/TestSuite.h"
 #include "Poco/DateTime.h"
 #include "Poco/Timestamp.h"
 #include "Poco/Timespan.h"
 #include "Poco/Exception.h"
-
-
-GCC_DIAG_OFF(unused-variable)
 
 
 using Poco::Timestamp;
@@ -28,7 +25,7 @@ using Poco::Timespan;
 using Poco::AssertionViolationException;
 
 
-DateTimeTest::DateTimeTest(const std::string& name): CppUnit::TestCase(name)
+DateTimeTest::DateTimeTest(const std::string& rName): CppUnit::TestCase(rName)
 {
 }
 

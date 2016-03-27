@@ -11,18 +11,17 @@
 
 
 #include "ListMapTest.h"
-#include "CppUnit/TestCaller.h"
-#include "CppUnit/TestSuite.h"
+#include "Poco/CppUnit/TestCaller.h"
+#include "Poco/CppUnit/TestSuite.h"
 #include "Poco/ListMap.h"
 #include "Poco/Exception.h"
 #include <map>
 
-GCC_DIAG_OFF(unused-variable)
 
 using Poco::ListMap;
 
 
-ListMapTest::ListMapTest(const std::string& name): CppUnit::TestCase(name)
+ListMapTest::ListMapTest(const std::string& rName): CppUnit::TestCase(rName)
 {
 }
 

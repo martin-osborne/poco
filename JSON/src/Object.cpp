@@ -104,28 +104,29 @@ void Object::stringify(std::ostream& out, unsigned int indent, int step) const
 const std::string& Object::getKey(KeyPtrList::const_iterator& iter) const
 {
 	ValueMap::const_iterator it = _values.begin();
-	ValueMap::const_iterator end = _values.end();
-	for (; it != end; ++it)
+	ValueMap::const_iterator itEnd = _values.end();
+	for (; it != itEnd; ++it)
 	{
-		if (&it->second == *iter) return it->first;
+		if (it->first == **iter) return it->first;
 	}
 
-	throw NotFoundException((*iter)->convert<std::string>());
+	throw NotFoundException(**iter);
 }
 
 
 void Object::set(const std::string& key, const Dynamic::Var& value)
 {
-	_values[key] = value;
+	std::pair<ValueMap::iterator, bool> ret = _values.insert(ValueMap::value_type(key, value));
+	if (!ret.second) ret.first->second = value;
 	if (_preserveInsOrder)
 	{
 		KeyPtrList::iterator it = _keys.begin();
-		KeyPtrList::iterator end = _keys.end();
-		for (; it != end; ++it)
+		KeyPtrList::iterator itEnd = _keys.end();
+		for (; it != itEnd; ++it)
 		{
 			if (key == **it) return;
 		}
-		_keys.push_back(&_values[key]);
+		_keys.push_back(&ret.first->first);
 	}
 }
 
@@ -163,9 +164,9 @@ Object::operator const Poco::DynamicStruct& () const
 	if (!_pStruct)
 	{
 		ValueMap::const_iterator it = _values.begin();
-		ValueMap::const_iterator end = _values.end();
+		ValueMap::const_iterator itEnd = _values.end();
 		_pStruct = new Poco::DynamicStruct;
-		for (; it != end; ++it)
+		for (; it != itEnd; ++it)
 		{
 			if (isObject(it))
 			{

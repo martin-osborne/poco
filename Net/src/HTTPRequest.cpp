@@ -37,11 +37,13 @@ const std::string HTTPRequest::HTTP_OPTIONS        = "OPTIONS";
 const std::string HTTPRequest::HTTP_DELETE         = "DELETE";
 const std::string HTTPRequest::HTTP_TRACE          = "TRACE";
 const std::string HTTPRequest::HTTP_CONNECT        = "CONNECT";
+const std::string HTTPRequest::HTTP_PATCH          = "PATCH";
 const std::string HTTPRequest::HOST                = "Host";
 const std::string HTTPRequest::COOKIE              = "Cookie";
 const std::string HTTPRequest::AUTHORIZATION       = "Authorization";
 const std::string HTTPRequest::PROXY_AUTHORIZATION = "Proxy-Authorization";
 const std::string HTTPRequest::UPGRADE             = "Upgrade";
+const std::string HTTPRequest::EXPECT              = "Expect";
 
 
 HTTPRequest::HTTPRequest():
@@ -239,11 +241,11 @@ void HTTPRequest::getCredentials(const std::string& header, std::string& scheme,
 	{
 		const std::string& auth = get(header);
 		std::string::const_iterator it  = auth.begin();
-		std::string::const_iterator end = auth.end();
-		while (it != end && Poco::Ascii::isSpace(*it)) ++it;
-		while (it != end && !Poco::Ascii::isSpace(*it)) scheme += *it++;
-		while (it != end && Poco::Ascii::isSpace(*it)) ++it;
-		while (it != end) authInfo += *it++;
+		std::string::const_iterator itEnd = auth.end();
+		while (it != itEnd && Poco::Ascii::isSpace(*it)) ++it;
+		while (it != itEnd && !Poco::Ascii::isSpace(*it)) scheme += *it++;
+		while (it != itEnd && Poco::Ascii::isSpace(*it)) ++it;
+		while (it != itEnd) authInfo += *it++;
 	}
 	else throw NotAuthenticatedException();
 }
@@ -255,6 +257,22 @@ void HTTPRequest::setCredentials(const std::string& header, const std::string& s
 	auth.append(" ");
 	auth.append(authInfo);
 	set(header, auth);
+}
+
+
+bool HTTPRequest::getExpectContinue() const
+{
+	const std::string& expect = get(EXPECT, EMPTY);
+	return !expect.empty() && icompare(expect, "100-continue") == 0;
+}
+
+
+void HTTPRequest::setExpectContinue(bool expectContinue)
+{
+	if (expectContinue)
+		set(EXPECT, "100-continue");
+	else
+		erase(EXPECT);
 }
 
 

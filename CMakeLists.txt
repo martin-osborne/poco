@@ -5,15 +5,16 @@
 #
 # ENABLE_{COMPONENT}
 # ENABLE_TESTS
-
-project(Poco)
+# ENABLE_SAMPLES
 
 cmake_minimum_required(VERSION 3.0.0)
 
-file(STRINGS "${CMAKE_SOURCE_DIR}/libversion" SHARED_LIBRARY_VERSION)
+project(Poco)
+
+file(STRINGS "${PROJECT_SOURCE_DIR}/libversion" SHARED_LIBRARY_VERSION)
 
 # Read the version information from the VERSION file
-file (STRINGS "${CMAKE_SOURCE_DIR}/VERSION" PACKAGE_VERSION )
+file (STRINGS "${PROJECT_SOURCE_DIR}/VERSION" PACKAGE_VERSION )
 message(STATUS "Poco package version: ${PACKAGE_VERSION}")
 string(REGEX REPLACE "([0-9]+)\\.[0-9]+\\.[0-9]+.*" "\\1" CPACK_PACKAGE_VERSION_MAJOR ${PACKAGE_VERSION})
 string(REGEX REPLACE "[0-9]+\\.([0-9])+\\.[0-9]+.*" "\\1" CPACK_PACKAGE_VERSION_MINOR ${PACKAGE_VERSION})
@@ -35,6 +36,8 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 # Append our module directory to CMake
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
+# COMMENT REPLACED BY BIICODE
+
 #################################################################################
 # Setup C/C++ compiler options
 #################################################################################
@@ -44,30 +47,17 @@ if(NOT MSVC_IDE)
     set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING
       "Choose the type of build, options are: None Debug Release" FORCE)
   endif()
-  message(STATUS "Setting Poco build type - ${CMAKE_BUILD_TYPE}")
 endif()
 
 if (CMAKE_BUILD_TYPE STREQUAL "")
     set( CMAKE_BUILD_TYPE "RelWithDebInfo" )
-endif ()
-
-# http://www.cmake.org/Wiki/CMake_Useful_Variables :
-# CMAKE_BUILD_TYPE
-#    Choose the type of build. CMake has default flags for these:
-#
-#    * None (CMAKE_C_FLAGS or CMAKE_CXX_FLAGS used)
-#    * Debug (CMAKE_C_FLAGS_DEBUG or CMAKE_CXX_FLAGS_DEBUG)
-#    * Release (CMAKE_C_FLAGS_RELEASE or CMAKE_CXX_FLAGS_RELEASE)
-#    * RelWithDebInfo (CMAKE_C_FLAGS_RELWITHDEBINFO or CMAKE_CXX_FLAGS_RELWITHDEBINFO
-#    * MinSizeRel (CMAKE_C_FLAGS_MINSIZEREL or CMAKE_CXX_FLAGS_MINSIZEREL)
-
-# For Debug build types, append a "d" to the library names.
-set(CMAKE_DEBUG_POSTFIX "d" CACHE STRING "Set debug library postfix" FORCE)
+endif()
 
 # Include some common macros to simpilfy the Poco CMake files
 include(PocoMacros)
 
 # Allow enabling and disabling components
+option(ENABLE_CPPUNIT "Enable the CppUnit" ON)
 option(ENABLE_XML "Enable the XML" ON)
 option(ENABLE_JSON "Enable the JSON" ON)
 option(ENABLE_MONGODB "Enable MongoDB" ON)
@@ -80,6 +70,7 @@ option(ENABLE_CRYPTO "Enable Crypto" ON)
 option(ENABLE_DATA "Enable Data" ON)
 option(ENABLE_DATA_SQLITE "Enable Data SQlite" ON)
 option(ENABLE_DATA_MYSQL "Enable Data MySQL" ON)
+option(ENABLE_DATA_POSTGRESQL "Enable Data PosgreSQL" ON)
 option(ENABLE_DATA_ODBC "Enable Data ODBC" ON)
 option(ENABLE_SEVENZIP "Enable SevenZip" OFF)
 option(ENABLE_ZIP "Enable Zip" ON)
@@ -88,11 +79,15 @@ option(ENABLE_CPPPARSER "Enable C++ parser" OFF)
 option(ENABLE_POCODOC "Enable Poco Documentation Generator" OFF)
 option(ENABLE_PAGECOMPILER "Enable PageCompiler" ON)
 option(ENABLE_PAGECOMPILER_FILE2PAGE "Enable File2Page" ON)
+option(ENABLE_REDIS "Enable Redis" ON)
 
 option(FORCE_OPENSSL "Force usage of OpenSSL even under windows" OFF)
 
 option(ENABLE_TESTS
-  "Set to OFF|ON (default is OFF) to control build of POCO tests & samples" OFF)
+  "Set to OFF|ON (default is OFF) to control build of POCO tests" OFF)
+
+option(ENABLE_SAMPLES
+  "Set to OFF|ON (default is OFF) to control build of POCO samples" OFF)
 
 option(POCO_STATIC
   "Set to OFF|ON (default is OFF) to control build of POCO as STATIC library" OFF)
@@ -100,22 +95,37 @@ option(POCO_STATIC
 option(POCO_UNBUNDLED
   "Set to OFF|ON (default is OFF) to control linking dependencies as external" OFF)
 
-# Uncomment from next two lines to force statitc or dynamic library, default is autodetection
+if(MSVC)
+    option(POCO_MT
+      "Set to OFF|ON (default is OFF) to control build of POCO as /MT instead of /MD" OFF)
+
+    option(ENABLE_MSVC_MP
+      "Set to OFF|ON (default is OFF) to control parallel build of POCO with MSVC" OFF)
+endif()
+
+# Uncomment from next two lines to force static or dynamic library, default is autodetection
 if(POCO_STATIC)
-    add_definitions( -DPOCO_STATIC -DPOCO_NO_AUTOMATIC_LIBS)
+    set( LIB_MODE_DEFINITIONS -DPOCO_STATIC -DPOCO_NO_AUTOMATIC_LIBS)
     set( LIB_MODE STATIC )
     message(STATUS "Building static libraries")
 else(POCO_STATIC)
     set( LIB_MODE SHARED )
+    set( LIB_MODE_DEFINITIONS -DPOCO_NO_AUTOMATIC_LIBS)
     message(STATUS "Building dynamic libraries")
 endif(POCO_STATIC)
 
 if (ENABLE_TESTS)
   include(CTest)
   enable_testing()
-  message(STATUS "Building with unittests & samples")
+  message(STATUS "Building with tests")
 else ()
-  message(STATUS "Building without tests & samples")
+  message(STATUS "Building without tests")
+endif ()
+
+if (ENABLE_SAMPLES)
+  message(STATUS "Building with samples")
+else ()
+  message(STATUS "Building without samples")
 endif ()
 
 if (POCO_UNBUNDLED)
@@ -125,64 +135,17 @@ else ()
   message(STATUS "Build with using internal copy of sqlite, libz, pcre, expat, ...")
 endif ()
 
-include(CheckTypeSize)
-find_package(Cygwin)
-
-# OS Detection
-if(WIN32)
-  add_definitions( -DPOCO_OS_FAMILY_WINDOWS -DUNICODE -D_UNICODE)
-  #set(SYSLIBS iphlpapi gdi32 odbc32)
-endif(WIN32)
-
-if (UNIX AND NOT ANDROID )
-  add_definitions( -DPOCO_OS_FAMILY_UNIX )
-  # Standard 'must be' defines
-  if (APPLE)
-    add_definitions( -DPOCO_HAVE_IPv6 -DPOCO_NO_STAT64)
-    set(SYSLIBS  dl)
-  else (APPLE)
-    add_definitions( -D_XOPEN_SOURCE=500 -D_REENTRANT -D_THREAD_SAFE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
-    set(SYSLIBS  pthread dl rt)
-  endif (APPLE)
-endif(UNIX AND NOT ANDROID )
-
-if (CMAKE_SYSTEM MATCHES "SunOS")
-  add_definitions( -DPOCO_OS_FAMILY_UNIX )
-  # Standard 'must be' defines
-  add_definitions( -D_XOPEN_SOURCE=500 -D_REENTRANT -D_THREAD_SAFE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 )
-  set(SYSLIBS  pthread socket xnet nsl resolv rt dl)
-endif(CMAKE_SYSTEM MATCHES "SunOS")
-
-if (CMAKE_COMPILER_IS_MINGW)
-  add_definitions(-DWC_NO_BEST_FIT_CHARS=0x400  -DPOCO_WIN32_UTF8)
-  add_definitions(-D_WIN32 -DMINGW32 -DWINVER=0x500 -DODBCVER=0x0300 -DPOCO_THREAD_STACK_SIZE)
-endif (CMAKE_COMPILER_IS_MINGW)
-
-if (CYGWIN)
-#    add_definitions(-DWC_NO_BEST_FIT_CHARS=0x400  -DPOCO_WIN32_UTF8)
-endif (CYGWIN)
-
-# SunPro C++
-if (${CMAKE_CXX_COMPILER_ID} MATCHES "SunPro")
-  add_definitions( -D_BSD_SOURCE -library=stlport4)
-endif (${CMAKE_CXX_COMPILER_ID} MATCHES "SunPro")
-
-# iOS
-if (IOS)
-  add_definitions( -DPOCO_HAVE_IPv6 -DPOCO_NO_FPENVIRONMENT -DPOCO_NO_STAT64 -DPOCO_NO_SHAREDLIBS -DPOCO_NO_NET_IFTYPES )
-endif(IOS)
-
-#Android
-if (ANDROID)
-  add_definitions( -DPOCO_ANDROID -DPOCO_NO_FPENVIRONMENT -DPOCO_NO_WSTRING -DPOCO_NO_SHAREDMEMORY )
-endif(ANDROID)
-
+include(DefinePlatformSpecifc)
 
 # Collect the built libraries and include dirs, the will be used to create the PocoConfig.cmake file
 set(Poco_COMPONENTS "")
 
+# Pthreads/threads support
+find_package(Threads REQUIRED)
+
 if (ENABLE_TESTS)
    add_subdirectory(CppUnit)
+   list(APPEND Poco_COMPONENTS "CppUnit")
 endif ()
 
 add_subdirectory(Foundation)
@@ -210,7 +173,6 @@ if(ENABLE_NET)
 add_subdirectory(Net)
 list(APPEND Poco_COMPONENTS "Net")
 endif()
-
 
 #NetSSL
 
@@ -244,6 +206,10 @@ endif()
 if(ENABLE_ZIP)
 add_subdirectory(Zip)
 list(APPEND Poco_COMPONENTS "Zip")
+endif()
+if(ENABLE_REDIS)
+add_subdirectory(Redis)
+list(APPEND Poco_COMPONENTS "Redis")
 endif()
 
 find_package(APR)
@@ -327,8 +293,23 @@ install(
 message(STATUS "CMake ${CMAKE_VERSION} successfully configured ${PROJECT_NAME} using ${CMAKE_GENERATOR} generator")
 message(STATUS "Installation target path: ${CMAKE_INSTALL_PREFIX}")
 
+message(STATUS "")
+message(STATUS "Generated with config types: ${CMAKE_CONFIGURATION_TYPES}")
+message(STATUS "Setting Poco build type - ${CMAKE_BUILD_TYPE}")
+message(STATUS "")
+
 message(STATUS "C_FLAGS:  =${CMAKE_C_FLAGS}")
+message(STATUS "CMAKE_C_FLAGS_DEBUG:=${CMAKE_C_FLAGS_DEBUG}")
+message(STATUS "CMAKE_C_FLAGS_RELEASE:=${CMAKE_C_FLAGS_RELEASE}")
+message(STATUS "CMAKE_C_FLAGS_MINSIZEREL:=${CMAKE_C_FLAGS_MINSIZEREL}")
+message(STATUS "CMAKE_C_FLAGS_RELWITHDEBINFO:=${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+message(STATUS "")
+message(STATUS "")
 message(STATUS "CXX_FLAGS:=${CMAKE_CXX_FLAGS}")
+message(STATUS "CMAKE_CXX_FLAGS_DEBUG:=${CMAKE_CXX_FLAGS_DEBUG}")
+message(STATUS "CMAKE_CXX_FLAGS_RELEASE:=${CMAKE_CXX_FLAGS_RELEASE}")
+message(STATUS "CMAKE_CXX_FLAGS_MINSIZEREL:=${CMAKE_CXX_FLAGS_MINSIZEREL}")
+message(STATUS "CMAKE_CXX_FLAGS_RELWITHDEBINFO:=${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 
 foreach(component ${Poco_COMPONENTS})
 message(STATUS "Building: ${component}")

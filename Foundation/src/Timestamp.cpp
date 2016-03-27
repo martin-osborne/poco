@@ -17,6 +17,12 @@
 #include "Poco/Timestamp.h"
 #include "Poco/Timespan.h"
 #include "Poco/Exception.h"
+#if defined(POCO_OS_FAMILY_WINDOWS)
+#include "Poco/UnWindows.h"
+#if defined(_WIN32_WCE)
+#include <cmath>
+#endif
+#endif
 #include <algorithm>
 #undef min
 #undef max
@@ -30,15 +36,10 @@
 #include <sys/time.h>
 #include <sys/times.h>
 #endif
-#elif defined(POCO_OS_FAMILY_WINDOWS)
-#include "Poco/UnWindows.h"
-#if defined(_WIN32_WCE)
-#include <cmath>
-#endif
 #endif
 
 
-#if defined(_WIN32_WCE)
+#if defined(_WIN32_WCE) && defined(POCO_WINCE_TIMESTAMP_HACK)
 
 
 //
@@ -138,7 +139,7 @@ void GetSystemTimeAsFileTimeWithMillisecondResolution(FILETIME* pFT)
 } // namespace
 
 
-#endif // defined(_WIN32_WCE)
+#endif // defined(_WIN32_WCE) && defined(POCO_WINCE_TIMESTAMP_HACK)
 
 
 namespace Poco {
@@ -210,7 +211,7 @@ void Timestamp::update()
 #if defined(POCO_OS_FAMILY_WINDOWS)
 
 	FILETIME ft;
-#if defined(_WIN32_WCE)
+#if defined(_WIN32_WCE) && defined(POCO_WINCE_TIMESTAMP_HACK)
 	GetSystemTimeAsFileTimeWithMillisecondResolution(&ft);
 #else
 	GetSystemTimeAsFileTime(&ft);

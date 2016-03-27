@@ -33,6 +33,11 @@
 #endif
 
 
+#ifdef POCO_OS_FAMILY_WINDOWS
+#include <Windows.h>
+#endif
+
+
 using Poco::IOException;
 using Poco::TimeoutException;
 using Poco::InvalidArgumentException;
@@ -44,16 +49,34 @@ namespace Poco {
 namespace Net {
 
 
+bool checkIsBrokenTimeout()
+{
+#if defined(POCO_BROKEN_TIMEOUTS)
+	return true;
+#elif defined(POCO_OS_FAMILY_WINDOWS)
+	// on Windows 7 and lower, socket timeouts have a minimum of 500ms, use poll for timeouts on this case
+	// https://social.msdn.microsoft.com/Forums/en-US/76620f6d-22b1-4872-aaf0-833204f3f867/minimum-timeout-value-for-sorcvtimeo
+	OSVERSIONINFO vi;
+	vi.dwOSVersionInfoSize = sizeof(vi);
+	if (GetVersionEx(&vi) == 0) return true; //throw SystemException("Cannot get OS version information");
+	return vi.dwMajorVersion < 6 || (vi.dwMajorVersion == 6 && vi.dwMinorVersion < 2);
+#endif
+	return false;
+}
+
+
 SocketImpl::SocketImpl():
 	_sockfd(POCO_INVALID_SOCKET),
-	_blocking(true)
+	_blocking(true), 
+	_isBrokenTimeout(checkIsBrokenTimeout())
 {
 }
 
 
-SocketImpl::SocketImpl(poco_socket_t sockfd):
-	_sockfd(sockfd),
-	_blocking(true)
+SocketImpl::SocketImpl(poco_socket_t socketfd):
+	_sockfd(socketfd),
+	_blocking(true),
+	_isBrokenTimeout(checkIsBrokenTimeout())
 {
 }
 
@@ -87,51 +110,51 @@ SocketImpl* SocketImpl::acceptConnection(SocketAddress& clientAddr)
 }
 
 
-void SocketImpl::connect(const SocketAddress& address)
+void SocketImpl::connect(const SocketAddress& rAddress)
 {
 	if (_sockfd == POCO_INVALID_SOCKET)
 	{
-		init(address.af());
+		init(rAddress.af());
 	}
 	int rc;
 	do
 	{
 #if defined(POCO_VXWORKS)
-		rc = ::connect(_sockfd, (sockaddr*) address.addr(), address.length());
+		rc = ::connect(_sockfd, (sockaddr*) rAddress.addr(), rAddress.length());
 #else
-		rc = ::connect(_sockfd, address.addr(), address.length());
+		rc = ::connect(_sockfd, rAddress.addr(), rAddress.length());
 #endif
 	}
 	while (rc != 0 && lastError() == POCO_EINTR);
 	if (rc != 0) 
 	{
 		int err = lastError();
-		error(err, address.toString());
+		error(err, rAddress.toString());
 	}
 }
 
 
-void SocketImpl::connect(const SocketAddress& address, const Poco::Timespan& timeout)
+void SocketImpl::connect(const SocketAddress& rAddress, const Poco::Timespan& timeout)
 {
 	if (_sockfd == POCO_INVALID_SOCKET)
 	{
-		init(address.af());
+		init(rAddress.af());
 	}
 	setBlocking(false);
 	try
 	{
 #if defined(POCO_VXWORKS)
-		int rc = ::connect(_sockfd, (sockaddr*) address.addr(), address.length());
+		int rc = ::connect(_sockfd, (sockaddr*) rAddress.addr(), rAddress.length());
 #else
-		int rc = ::connect(_sockfd, address.addr(), address.length());
+		int rc = ::connect(_sockfd, rAddress.addr(), rAddress.length());
 #endif
 		if (rc != 0)
 		{
 			int err = lastError();
 			if (err != POCO_EINPROGRESS && err != POCO_EWOULDBLOCK)
-				error(err, address.toString());
+				error(err, rAddress.toString());
 			if (!poll(timeout, SELECT_READ | SELECT_WRITE | SELECT_ERROR))
-				throw Poco::TimeoutException("connect timed out", address.toString());
+				throw Poco::TimeoutException("connect timed out", rAddress.toString());
 			err = socketError();
 			if (err != 0) error(err);
 		}
@@ -145,32 +168,32 @@ void SocketImpl::connect(const SocketAddress& address, const Poco::Timespan& tim
 }
 
 
-void SocketImpl::connectNB(const SocketAddress& address)
+void SocketImpl::connectNB(const SocketAddress& rAddress)
 {
 	if (_sockfd == POCO_INVALID_SOCKET)
 	{
-		init(address.af());
+		init(rAddress.af());
 	}
 	setBlocking(false);
 #if defined(POCO_VXWORKS)
-	int rc = ::connect(_sockfd, (sockaddr*) address.addr(), address.length());
+	int rc = ::connect(_sockfd, (sockaddr*) rAddress.addr(), rAddress.length());
 #else
-	int rc = ::connect(_sockfd, address.addr(), address.length());
+	int rc = ::connect(_sockfd, rAddress.addr(), rAddress.length());
 #endif
 	if (rc != 0)
 	{
 		int err = lastError();
 		if (err != POCO_EINPROGRESS && err != POCO_EWOULDBLOCK)
-			error(err, address.toString());
+			error(err, rAddress.toString());
 	}
 }
 
 
-void SocketImpl::bind(const SocketAddress& address, bool reuseAddress)
+void SocketImpl::bind(const SocketAddress& rAddress, bool reuseAddress)
 {
 	if (_sockfd == POCO_INVALID_SOCKET)
 	{
-		init(address.af());
+		init(rAddress.af());
 	}
 	if (reuseAddress)
 	{
@@ -178,23 +201,23 @@ void SocketImpl::bind(const SocketAddress& address, bool reuseAddress)
 		setReusePort(true);
 	}
 #if defined(POCO_VXWORKS)
-	int rc = ::bind(_sockfd, (sockaddr*) address.addr(), address.length());
+	int rc = ::bind(_sockfd, (sockaddr*) rAddress.addr(), rAddress.length());
 #else
-	int rc = ::bind(_sockfd, address.addr(), address.length());
+	int rc = ::bind(_sockfd, rAddress.addr(), rAddress.length());
 #endif
-	if (rc != 0) error(address.toString());
+	if (rc != 0) error(rAddress.toString());
 }
 
 
-void SocketImpl::bind6(const SocketAddress& address, bool reuseAddress, bool ipV6Only)
+void SocketImpl::bind6(const SocketAddress& rAddress, bool reuseAddress, bool ipV6Only)
 {
 #if defined(POCO_HAVE_IPv6)
-	if (address.family() != IPAddress::IPv6)
+	if (rAddress.family() != SocketAddress::IPv6)
 		throw Poco::InvalidArgumentException("SocketAddress must be an IPv6 address");
 		
 	if (_sockfd == POCO_INVALID_SOCKET)
 	{
-		init(address.af());
+		init(rAddress.af());
 	}
 #ifdef IPV6_V6ONLY
 	setOption(IPPROTO_IPV6, IPV6_V6ONLY, ipV6Only ? 1 : 0);
@@ -206,8 +229,8 @@ void SocketImpl::bind6(const SocketAddress& address, bool reuseAddress, bool ipV
 		setReuseAddress(true);
 		setReusePort(true);
 	}
-	int rc = ::bind(_sockfd, address.addr(), address.length());
-	if (rc != 0) error(address.toString());
+	int rc = ::bind(_sockfd, rAddress.addr(), rAddress.length());
+	if (rc != 0) error(rAddress.toString());
 #else
 	throw Poco::NotImplementedException("No IPv6 support available");
 #endif
@@ -262,13 +285,14 @@ void SocketImpl::shutdown()
 
 int SocketImpl::sendBytes(const void* buffer, int length, int flags)
 {
-#if defined(POCO_BROKEN_TIMEOUTS)
-	if (_sndTimeout.totalMicroseconds() != 0)
+	if (_isBrokenTimeout)
 	{
-		if (!poll(_sndTimeout, SELECT_WRITE))
-			throw TimeoutException();
+		if (_sndTimeout.totalMicroseconds() != 0)
+		{
+			if (!poll(_sndTimeout, SELECT_WRITE))
+				throw TimeoutException();
+		}
 	}
-#endif
 
 	int rc;
 	do
@@ -284,13 +308,14 @@ int SocketImpl::sendBytes(const void* buffer, int length, int flags)
 
 int SocketImpl::receiveBytes(void* buffer, int length, int flags)
 {
-#if defined(POCO_BROKEN_TIMEOUTS)
-	if (_recvTimeout.totalMicroseconds() != 0)
+	if (_isBrokenTimeout)
 	{
-		if (!poll(_recvTimeout, SELECT_READ))
-			throw TimeoutException();
+		if (_recvTimeout.totalMicroseconds() != 0)
+		{
+			if (!poll(_recvTimeout, SELECT_READ))
+				throw TimeoutException();
+		}
 	}
-#endif
 	
 	int rc;
 	do
@@ -313,16 +338,16 @@ int SocketImpl::receiveBytes(void* buffer, int length, int flags)
 }
 
 
-int SocketImpl::sendTo(const void* buffer, int length, const SocketAddress& address, int flags)
+int SocketImpl::sendTo(const void* buffer, int length, const SocketAddress& rAddress, int flags)
 {
 	int rc;
 	do
 	{
 		if (_sockfd == POCO_INVALID_SOCKET) throw InvalidSocketException();
 #if defined(POCO_VXWORKS)
-		rc = ::sendto(_sockfd, (char*) buffer, length, flags, (sockaddr*) address.addr(), address.length());
+		rc = ::sendto(_sockfd, (char*) buffer, length, flags, (sockaddr*) rAddress.addr(), rAddress.length());
 #else
-		rc = ::sendto(_sockfd, reinterpret_cast<const char*>(buffer), length, flags, address.addr(), address.length());
+		rc = ::sendto(_sockfd, reinterpret_cast<const char*>(buffer), length, flags, rAddress.addr(), rAddress.length());
 #endif
 	}
 	while (_blocking && rc < 0 && lastError() == POCO_EINTR);
@@ -331,15 +356,16 @@ int SocketImpl::sendTo(const void* buffer, int length, const SocketAddress& addr
 }
 
 
-int SocketImpl::receiveFrom(void* buffer, int length, SocketAddress& address, int flags)
+int SocketImpl::receiveFrom(void* buffer, int length, SocketAddress& rAddress, int flags)
 {
-#if defined(POCO_BROKEN_TIMEOUTS)
-	if (_recvTimeout.totalMicroseconds() != 0)
+	if (_isBrokenTimeout)
 	{
-		if (!poll(_recvTimeout, SELECT_READ))
-			throw TimeoutException();
+		if (_recvTimeout.totalMicroseconds() != 0)
+		{
+			if (!poll(_recvTimeout, SELECT_READ))
+				throw TimeoutException();
+		}
 	}
-#endif
 	
 	char abuffer[SocketAddress::MAX_ADDRESS_LENGTH];
 	struct sockaddr* pSA = reinterpret_cast<struct sockaddr*>(abuffer);
@@ -353,7 +379,7 @@ int SocketImpl::receiveFrom(void* buffer, int length, SocketAddress& address, in
 	while (_blocking && rc < 0 && lastError() == POCO_EINTR);
 	if (rc >= 0)
 	{
-		address = SocketAddress(pSA, saLen);
+		rAddress = SocketAddress(pSA, saLen);
 	}
 	else
 	{
@@ -394,8 +420,8 @@ bool SocketImpl::secure() const
 
 bool SocketImpl::poll(const Poco::Timespan& timeout, int mode)
 {
-	poco_socket_t sockfd = _sockfd;
-	if (sockfd == POCO_INVALID_SOCKET) throw InvalidSocketException();
+	poco_socket_t socketfd = _sockfd;
+	if (socketfd == POCO_INVALID_SOCKET) throw InvalidSocketException();
 
 #if defined(POCO_HAVE_FD_EPOLL)
 
@@ -417,7 +443,7 @@ bool SocketImpl::poll(const Poco::Timespan& timeout, int mode)
 	if (mode & SELECT_ERROR)
 		evin.events |= EPOLLERR;
 
-	if (epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd, &evin) < 0)
+	if (epoll_ctl(epollfd, EPOLL_CTL_ADD, socketfd, &evin) < 0)
 	{
 		char buf[1024];
 		strerror_r(errno, buf, sizeof(buf));
@@ -477,6 +503,8 @@ bool SocketImpl::poll(const Poco::Timespan& timeout, int mode)
 		}
 	}
 	while (rc < 0 && lastError() == POCO_EINTR);
+	if (rc < 0) error();
+	return rc > 0; 
 
 #else
 
@@ -488,15 +516,15 @@ bool SocketImpl::poll(const Poco::Timespan& timeout, int mode)
 	FD_ZERO(&fdExcept);
 	if (mode & SELECT_READ)
 	{
-		FD_SET(sockfd, &fdRead);
+		FD_SET(socketfd, &fdRead);
 	}
 	if (mode & SELECT_WRITE)
 	{
-		FD_SET(sockfd, &fdWrite);
+		FD_SET(socketfd, &fdWrite);
 	}
 	if (mode & SELECT_ERROR)
 	{
-		FD_SET(sockfd, &fdExcept);
+		FD_SET(socketfd, &fdExcept);
 	}
 	Poco::Timespan remainingTime(timeout);
 	int errorCode = POCO_ENOERR;
@@ -507,7 +535,7 @@ bool SocketImpl::poll(const Poco::Timespan& timeout, int mode)
 		tv.tv_sec  = (long) remainingTime.totalSeconds();
 		tv.tv_usec = (long) remainingTime.useconds();
 		Poco::Timestamp start;
-		rc = ::select(int(sockfd) + 1, &fdRead, &fdWrite, &fdExcept, &tv);
+		rc = ::select(int(socketfd) + 1, &fdRead, &fdWrite, &fdExcept, &tv);
 		if (rc < 0 && (errorCode = lastError()) == POCO_EINTR)
 		{
 			Poco::Timestamp end;
@@ -559,11 +587,11 @@ void SocketImpl::setSendTimeout(const Poco::Timespan& timeout)
 #if defined(_WIN32) && !defined(POCO_BROKEN_TIMEOUTS)
 	int value = (int) timeout.totalMilliseconds();
 	setOption(SOL_SOCKET, SO_SNDTIMEO, value);
-#elif defined(POCO_BROKEN_TIMEOUTS)
-	_sndTimeout = timeout;
-#else
+#elif !defined(POCO_BROKEN_TIMEOUTS)
 	setOption(SOL_SOCKET, SO_SNDTIMEO, timeout);
 #endif
+	if (_isBrokenTimeout)
+		_sndTimeout = timeout;
 }
 
 
@@ -574,11 +602,11 @@ Poco::Timespan SocketImpl::getSendTimeout()
 	int value;
 	getOption(SOL_SOCKET, SO_SNDTIMEO, value);
 	result = Timespan::TimeDiff(value)*1000;
-#elif defined(POCO_BROKEN_TIMEOUTS)
-	result = _sndTimeout;
-#else
+#elif !defined(POCO_BROKEN_TIMEOUTS)
 	getOption(SOL_SOCKET, SO_SNDTIMEO, result);
 #endif
+	if (_isBrokenTimeout)
+		result = _sndTimeout;
 	return result;
 }
 
@@ -592,9 +620,9 @@ void SocketImpl::setReceiveTimeout(const Poco::Timespan& timeout)
 #else
 	setOption(SOL_SOCKET, SO_RCVTIMEO, timeout);
 #endif
-#else
-	_recvTimeout = timeout;
 #endif
+	if (_isBrokenTimeout)
+		_recvTimeout = timeout;
 }
 
 
@@ -605,11 +633,11 @@ Poco::Timespan SocketImpl::getReceiveTimeout()
 	int value;
 	getOption(SOL_SOCKET, SO_RCVTIMEO, value);
 	result = Timespan::TimeDiff(value)*1000;
-#elif defined(POCO_BROKEN_TIMEOUTS)
-	result = _recvTimeout;
-#else
+#elif !defined(POCO_BROKEN_TIMEOUTS)
 	getOption(SOL_SOCKET, SO_RCVTIMEO, result);
 #endif
+	if (_isBrokenTimeout)
+		result = _recvTimeout;
 	return result;
 }
 
@@ -1064,6 +1092,8 @@ void SocketImpl::error(int code, const std::string& arg)
 		throw IOException("Broken pipe", code);
 	case EBADF:
 		throw IOException("Bad socket descriptor", code);
+	case ENOENT:
+		throw IOException("Not found", arg, code);
 #endif
 	default:
 		throw IOException(NumberFormatter::format(code), arg, code);

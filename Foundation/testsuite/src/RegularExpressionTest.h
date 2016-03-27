@@ -17,7 +17,7 @@
 
 
 #include "Poco/Foundation.h"
-#include "CppUnit/TestCase.h"
+#include "Poco/CppUnit/TestCase.h"
 
 
 class RegularExpressionTest: public CppUnit::TestCase
@@ -41,6 +41,7 @@ public:
 	void testSubst3();
 	void testSubst4();
 	void testError();
+	void testGroup();
 
 	void setUp();
 	void tearDown();

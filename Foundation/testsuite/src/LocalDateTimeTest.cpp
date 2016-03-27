@@ -11,8 +11,8 @@
 
 
 #include "LocalDateTimeTest.h"
-#include "CppUnit/TestCaller.h"
-#include "CppUnit/TestSuite.h"
+#include "Poco/CppUnit/TestCaller.h"
+#include "Poco/CppUnit/TestSuite.h"
 #include "Poco/LocalDateTime.h"
 #include "Poco/DateTime.h"
 #include "Poco/Timestamp.h"
@@ -36,7 +36,7 @@ using std::strftime;
 #endif
 
 
-LocalDateTimeTest::LocalDateTimeTest(const std::string& name): CppUnit::TestCase(name)
+LocalDateTimeTest::LocalDateTimeTest(const std::string& rName): CppUnit::TestCase(rName)
 {
 }
 
@@ -404,7 +404,7 @@ void LocalDateTimeTest::testTimezone()
 			// iterations. Do this with both a LocalDateTime object and
 			// a ANSI C time_t. Then create a LocalDateTime based on the
 			// time_t and verify that the time_t calculated value is equal
-			// to the LocalDateTime value. The comparision operator
+			// to the LocalDateTime value. The comparison operator
 			// verifies the _dateTime and _tzd members.
 			LocalDateTime dt2;
 			t = std::time(NULL);

@@ -11,18 +11,17 @@
 
 
 #include "HashMapTest.h"
-#include "CppUnit/TestCaller.h"
-#include "CppUnit/TestSuite.h"
+#include "Poco/CppUnit/TestCaller.h"
+#include "Poco/CppUnit/TestSuite.h"
 #include "Poco/HashMap.h"
 #include "Poco/Exception.h"
 #include <map>
 
-GCC_DIAG_OFF(unused-variable)
 
 using Poco::HashMap;
 
 
-HashMapTest::HashMapTest(const std::string& name): CppUnit::TestCase(name)
+HashMapTest::HashMapTest(const std::string& rName): CppUnit::TestCase(rName)
 {
 }
 

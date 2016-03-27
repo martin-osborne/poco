@@ -23,7 +23,7 @@ namespace Poco {
 namespace MongoDB {
 
 
-Database::Database( const std::string& db) : _dbname(db)
+Database::Database(const std::string& db) : _dbname(db)
 {
 }
 
@@ -32,7 +32,7 @@ Database::~Database()
 }
 
 
-double Database::count(Connection& connection, const std::string& collectionName) const
+Int64 Database::count(Connection& connection, const std::string& collectionName) const
 {
 	Poco::SharedPtr<Poco::MongoDB::QueryRequest> countRequest = createCountRequest(collectionName);
 
@@ -42,7 +42,7 @@ double Database::count(Connection& connection, const std::string& collectionName
 	if ( response.documents().size() > 0 )
 	{
 		Poco::MongoDB::Document::Ptr doc = response.documents()[0];
-		return doc->get<double>("n");
+		return doc->getInteger("n");
 	}
 
 	return -1;

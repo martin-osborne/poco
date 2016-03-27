@@ -20,7 +20,6 @@
 #include "Poco/Net/HTTPServerResponse.h"
 #include "Poco/Net/HTTPClientSession.h"
 #include "Poco/Net/NetException.h"
-#include "Poco/Buffer.h"
 #include "Poco/MemoryStream.h"
 #include "Poco/NullStream.h"
 #include "Poco/BinaryWriter.h"
@@ -114,6 +113,14 @@ int WebSocket::receiveFrame(void* buffer, int length, int& flags)
 }
 
 	
+int WebSocket::receiveFrame(Poco::Buffer<char>& buffer, int& flags)
+{
+	int n = static_cast<WebSocketImpl*>(impl())->receiveBytes(buffer, 0);
+	flags = static_cast<WebSocketImpl*>(impl())->frameFlags();
+	return n;
+}
+
+
 WebSocket::Mode WebSocket::mode() const
 {
 	return static_cast<WebSocketImpl*>(impl())->mustMaskPayload() ? WS_CLIENT : WS_SERVER;
@@ -204,7 +211,7 @@ WebSocketImpl* WebSocket::completeHandshake(HTTPClientSession& cs, HTTPResponse&
 		throw WebSocketException("No Upgrade: websocket header in handshake response", WS_ERR_NO_HANDSHAKE);
 	std::string accept = response.get("Sec-WebSocket-Accept", "");
 	if (accept != computeAccept(key))
-		throw WebSocketException("Invalid or missing Sec-WebSocket-Accept header in handshake response", WS_ERR_NO_HANDSHAKE);
+		throw WebSocketException("Invalid or missing Sec-WebSocket-Accept header in handshake response", WS_ERR_HANDSHAKE_ACCEPT);
 	return new WebSocketImpl(static_cast<StreamSocketImpl*>(cs.detachSocket().impl()), true);
 }
 

@@ -17,7 +17,7 @@
 
 
 #include "Poco/Net/Net.h"
-#include "CppUnit/TestCase.h"
+#include "Poco/CppUnit/TestCase.h"
 
 
 class SocketTest: public CppUnit::TestCase
@@ -42,6 +42,7 @@ public:
 	void testSelect();
 	void testSelect2();
 	void testSelect3();
+	void testEchoUnixLocal();
 
 	void setUp();
 	void tearDown();

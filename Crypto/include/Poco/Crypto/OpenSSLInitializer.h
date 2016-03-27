@@ -68,6 +68,8 @@ public:
 	static void enableFIPSMode(bool enabled);
 		// Enable or disable FIPS mode. If FIPS is not available, this method doesn't do anything.
 
+    static void disableSSLInitialization(); // Call if OpenSSL is already being initialized by another component before constructing any OpenSSLInitializers.
+
 protected:
 	enum
 	{
@@ -84,6 +86,7 @@ protected:
 private:
 	static Poco::FastMutex* _mutexes;
 	static Poco::AtomicCounter _rc;
+    static bool _disableSSLInitialization;
 };
 
 
@@ -110,8 +113,19 @@ inline void OpenSSLInitializer::enableFIPSMode(bool /*enabled*/)
 }
 #endif
 
+inline void OpenSSLInitializer::disableSSLInitialization()
+{
+    _disableSSLInitialization = true;
+}
+
 
 } } // namespace Poco::Crypto
+
+
+// needed for OpenSSL static link
+#if defined(_WIN32) && !defined(POCO_DLL) && (POCO_MSVS_VERSION >= 2015) && !defined(POCO_EXTERNAL_OPENSSL)
+	extern "C" FILE * __cdecl __iob_func(void);
+#endif
 
 
 #endif // Crypto_OpenSSLInitializer_INCLUDED
